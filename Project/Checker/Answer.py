@@ -1,0 +1,329 @@
+"""
+EASY
+  - 2  points each
+  - 12 points total
+"""
+
+ans01 = '''
+SELECT 
+  pname AS name, 
+  2023-birth AS age
+FROM 
+  People
+WHERE 
+  death IS NULL;
+'''
+
+ans02 = '''
+SELECT
+  pname AS name
+FROM
+  PEOPLE
+WHERE
+  char_length(pname) - char_length(replace(pname, ' ', '')) >= 2;
+'''
+
+ans03 = r'''
+SELECT
+  epname AS episode
+FROM
+  Episodes
+WHERE
+  epname ~ '\mSingapore\M';
+'''
+
+ans04 = '''
+SELECT
+  c.cname AS character,
+  p.pname AS name
+FROM
+  Characters AS c
+JOIN
+  PlaysAs AS p
+ON
+  c.cname = p.cname
+WHERE
+  c.cname !~ ' ';
+'''
+
+ans05 = '''
+SELECT
+  t.tname AS title,
+  t.syear AS syear
+FROM
+  Titles AS t
+LEFT JOIN
+  TvSeries AS tv
+ON
+  t.tid = tv.tid
+WHERE
+   tv.tid IS NULL AND t.syear >= 1960;
+'''
+
+ans06 = '''
+SELECT
+  t.tname AS title,
+  t.runtime AS runtime,
+  t.syear AS syear
+FROM
+  Titles AS t
+LEFT JOIN
+  TvSeries AS tv
+ON
+  t.tid = tv.tid
+WHERE
+  tv.tid IS NULL AND t.rating >= 7.5 AND votes >= 10000;
+'''
+
+
+
+
+"""
+MEDIUM
+  - 4  points each
+  - 20 points total
+"""
+
+ans07 = '''
+SELECT
+  p.pname AS director,
+  t.tname AS title
+FROM
+  Produces AS p
+JOIN
+  Genres AS g
+ON
+  p.tid = g.tid
+JOIN
+  Titles AS t
+ON
+  t.tid = p.tid
+WHERE
+  p.task = 'director' AND g.genre = 'Drama'
+'''
+
+ans08 = '''
+SELECT
+  p.pname AS name,
+  p.birth AS birth,
+  p.death AS death
+FROM
+  People p
+LEFT JOIN 
+  PlaysIn
+  ON 
+  p.pname = PlaysIn.pname
+WHERE
+  PlaysIn.pname IS NULL;
+'''
+
+ans09 = '''
+SELECT
+    People.pname AS name,
+    COUNT(DISTINCT Titles.tid) AS count,
+    MIN(Titles.syear) AS earliest,
+    MAX(Titles.runtime) AS longest
+FROM
+    PlaysIn
+JOIN
+    People ON PlaysIn.pname = People.pname
+JOIN
+    Titles ON PlaysIn.tid = Titles.tid
+GROUP BY
+    People.pname
+'''
+
+ans10 = '''
+SELECT
+  g.name AS name,
+  g.count AS count
+FROM
+ (SELECT
+    p.pname AS name,
+    COUNT(*) AS count
+  FROM
+    Titles AS t
+  JOIN
+    PlaysIn AS p
+  ON
+    t.tid = p.tid
+  WHERE t.syear >= 1950
+  GROUP BY
+    p.pname) AS g
+WHERE
+  g.count >= 
+   (SELECT
+      COUNT(*)
+    FROM
+      Titles AS t
+    JOIN
+      PlaysIn AS p
+    ON
+      t.tid = p.tid
+    WHERE
+      p.pname = 'Marlene Dietrich') 
+'''
+
+ans11 = '''
+SELECT
+  g.pname AS name,
+  p.cname AS character
+FROM
+ (SELECT
+    p.pname AS pname,
+    COUNT(*) AS count,
+    p.tid AS tid
+  FROM
+    PlaysAs AS p
+  GROUP BY
+    p.pname, p.tid) AS g
+JOIN
+  PlaysAs AS p
+ON
+  p.tid = g.tid
+WHERE
+  g.count >= 2
+'''
+
+
+
+
+"""
+HARD
+  - 7  points each
+  - 28 points total
+"""
+
+ans12 = '''
+SELECT
+    Titles.tname AS title,
+    Episodes.season AS season,
+    Episodes.epnum AS episode,
+    Episodes.epname AS name
+FROM
+    Titles
+JOIN
+    TvSeries ON Titles.tid = TvSeries.tid
+JOIN
+    Episodes ON TvSeries.tid = Episodes.tid
+WHERE
+    Titles.eyear IS NOT NULL
+ORDER BY
+    Titles.tname ASC,
+    Episodes.season DESC,
+    Episodes.epnum ASC;
+'''
+
+ans13 = '''
+WITH GCounts AS (
+    SELECT
+    Genres.genre AS genre,
+    COUNT(DISTINCT Titles.tid) AS count
+    FROM
+        Titles
+    JOIN
+        Genres ON Genres.tid = Titles.tid
+    GROUP BY
+        Genres.genre
+    HAVING
+        COUNT(Titles.tid) >= 5
+    ORDER BY
+        count DESC,
+        Genres.genre ASC
+),
+MinThree AS (
+    SELECT
+        count
+    FROM
+        GCounts
+    GROUP BY
+        count
+    ORDER BY
+        count ASC
+    LIMIT 3
+)
+SELECT
+    GCounts.genre AS genre,
+    GCounts.count AS count
+FROM
+    GCounts
+JOIN
+    MinThree ON GCounts.count = MinThree.count;
+'''
+
+ans14 = '''
+WITH JamesDeanGenres AS (
+  SELECT DISTINCT genre
+  FROM Genres
+  WHERE tid IN (
+    SELECT tid
+    FROM PlaysAs
+    WHERE pname = 'James Dean'
+  )
+),
+PeopleGenres AS (
+  SELECT DISTINCT
+    p.pname AS pname,
+    g.genre AS genre
+  FROM
+    PlaysAs AS p
+  JOIN
+    Genres AS g
+  ON
+    p.tid = g.tid
+)
+SELECT
+pg.pname AS name,
+pg.genre AS genre
+FROM PeopleGenres AS pg
+WHERE 
+  pg.pname != 'James Dean' 
+  AND 
+  NOT EXISTS (
+    SELECT genre
+    FROM JamesDeanGenres
+    EXCEPT
+    SELECT genre
+    FROM PeopleGenres AS pg_inner
+    WHERE pg_inner.pname = pg.pname
+);
+'''
+
+ans15 = '''
+WITH 
+MAXYEAR AS (
+    SELECT MAX(syear) AS maxyear FROM Titles
+),
+Years AS (
+    SELECT generate_series(1960, (SELECT maxyear FROM MAXYEAR)) AS year
+),
+FilmCounts AS (
+    SELECT
+        t.syear AS year,
+        g.genre AS genre,
+        COUNT(*) AS film_count,
+        RANK() OVER (PARTITION BY t.syear ORDER BY COUNT(*) DESC) AS genre_rank
+    FROM
+        Titles t
+    JOIN
+        Genres g ON t.tid = g.tid
+    WHERE
+        t.syear >= 1960
+    GROUP BY
+        t.syear, g.genre
+)
+SELECT
+    y.year,
+    COALESCE(fc.genre, NULL) AS genre
+FROM
+    Years y
+LEFT JOIN
+    FilmCounts fc ON y.year = fc.year AND fc.genre_rank = 1;
+
+'''
+
+ans = [
+  ans01, ans02, ans03, ans04, ans05,
+  ans06, ans07, ans08, ans09, ans10,
+  ans11, ans12, ans13, ans14, ans15,
+]
